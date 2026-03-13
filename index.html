@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MusAI — AI 驅動的音樂金融協議</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0a0a12;--surface:#13132a;--border:#2a2a4a;
+    --primary:#8b5cf6;--primary-light:#a78bfa;--primary-dark:#6d28d9;
+    --accent:#c084fc;--accent2:#38bdf8;--accent3:#f472b6;
+    --text:#e2e8f0;--text-dim:#94a3b8;--text-bright:#f8fafc;
+    --grad1:linear-gradient(135deg,#6d28d9,#8b5cf6,#38bdf8);
+    --grad2:linear-gradient(135deg,#8b5cf6 0%,#c084fc 50%,#38bdf8 100%);
+    --green:#22c55e;--yellow:#eab308;--red:#ef4444;
+  }
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei","Helvetica Neue",Arial,sans-serif;font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+
+  .deck{position:relative;width:100%;height:100%}
+  .slide{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:48px 72px;opacity:0;pointer-events:none;transition:opacity .45s ease,transform .45s ease;transform:translateX(40px);overflow-y:auto}
+  .slide.active{opacity:1;pointer-events:auto;transform:translateX(0)}
+  .slide.prev{transform:translateX(-40px)}
+
+  .page-indicator{position:fixed;bottom:28px;right:40px;font-size:14px;color:var(--text-dim);z-index:100;font-variant-numeric:tabular-nums}
+  .progress-bar{position:fixed;top:0;left:0;height:3px;background:var(--grad2);z-index:100;transition:width .4s ease}
+
+  .nav-arrow{position:fixed;top:50%;transform:translateY(-50%);z-index:100;background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.3);color:var(--primary-light);width:44px;height:44px;border-radius:50%;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all .2s}
+  .nav-arrow:hover{background:rgba(139,92,246,.35);color:#fff}
+  .nav-arrow.left{left:20px}
+  .nav-arrow.right{right:20px}
+
+  h1{font-size:3rem;font-weight:800;background:var(--grad2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.2;margin-bottom:.4em}
+  h2{font-size:1.9rem;font-weight:700;color:var(--text-bright);margin-bottom:.5em;position:relative}
+  h2::after{content:'';display:block;width:60px;height:3px;background:var(--grad2);border-radius:2px;margin-top:8px}
+  h3{font-size:1.25rem;font-weight:600;color:var(--primary-light);margin-bottom:.4em}
+  p,.desc{font-size:.95rem;color:var(--text);max-width:900px;margin-bottom:.5em}
+  .subtitle{font-size:1.15rem;color:var(--text-dim);margin-bottom:1em;font-weight:400}
+
+  .hl{color:var(--accent);font-weight:700}
+  .hl2{color:var(--accent2);font-weight:700}
+  .hl3{color:var(--accent3);font-weight:700}
+  .num{font-size:2.4rem;font-weight:800;background:var(--grad2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .big-num{font-size:3.2rem;font-weight:900;background:var(--grad2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1}
+  .tag{display:inline-block;background:rgba(139,92,246,.18);border:1px solid rgba(139,92,246,.35);color:var(--primary-light);padding:3px 14px;border-radius:20px;font-size:.82rem;margin:3px 4px;font-weight:500}
+
+  .cards{display:grid;gap:16px;width:100%;max-width:1000px}
+  .cards-3{grid-template-columns:repeat(3,1fr)}
+  .cards-2{grid-template-columns:repeat(2,1fr)}
+  .cards-4{grid-template-columns:repeat(4,1fr)}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px 20px;transition:border-color .2s,transform .2s}
+  .card:hover{border-color:var(--primary);transform:translateY(-2px)}
+  .card-icon{font-size:1.8rem;margin-bottom:10px;display:block}
+  .card h3{margin-bottom:6px}
+  .card p{font-size:.88rem;color:var(--text-dim);margin-bottom:0}
+
+  .table-wrap{width:100%;max-width:960px;overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:.88rem}
+  thead th{background:rgba(139,92,246,.2);color:var(--primary-light);font-weight:600;padding:12px 14px;text-align:left;border-bottom:2px solid var(--primary-dark)}
+  tbody td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text)}
+  tbody tr{transition:background .15s}
+  tbody tr:hover{background:rgba(139,92,246,.06)}
+  tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
+
+  .flow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;margin:14px 0}
+  .flow-step{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;font-size:.84rem;color:var(--text);text-align:center;min-width:120px;max-width:160px}
+  .flow-arrow{color:var(--primary);font-size:1.2rem;font-weight:700}
+
+  .dual-loop{display:grid;grid-template-columns:1fr 1fr;gap:20px;width:100%;max-width:920px}
+  .loop-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px}
+  .loop-box h3{margin-bottom:10px}
+  .loop-box ul{list-style:none;padding:0}
+  .loop-box li{padding:5px 0;font-size:.88rem;color:var(--text);border-bottom:1px solid rgba(255,255,255,.04)}
+  .loop-box li::before{content:'◆ ';color:var(--primary-light);font-size:.65rem;vertical-align:middle}
+
+  .feature-list{list-style:none;padding:0;max-width:800px;width:100%}
+  .feature-list li{padding:8px 0;font-size:.9rem;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:flex-start;gap:10px}
+  .feature-list li::before{content:'▸';color:var(--primary-light);font-weight:700;flex-shrink:0;margin-top:1px}
+
+  .cover{text-align:center}
+  .cover h1{font-size:4rem;margin-bottom:.2em}
+  .cover .subtitle{font-size:1.5rem}
+  .logo-text{font-size:5rem;font-weight:900;letter-spacing:-.04em;background:var(--grad2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:0}
+  .cover-badge{display:inline-block;margin-top:24px;padding:8px 28px;border:1px solid var(--primary);border-radius:30px;color:var(--primary-light);font-size:1rem;letter-spacing:.04em}
+
+  .cta-box{text-align:center;margin-top:20px}
+  .cta-btn{display:inline-block;padding:16px 48px;background:var(--grad2);color:#fff;font-size:1.15rem;font-weight:700;border-radius:30px;text-decoration:none;letter-spacing:.03em;box-shadow:0 0 40px rgba(139,92,246,.3)}
+
+  .token-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;max-width:700px;width:100%}
+  .token-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px}
+  .token-item .label{font-size:.8rem;color:var(--text-dim);margin-bottom:4px}
+  .token-item .value{font-size:1.1rem;font-weight:700;color:var(--text-bright)}
+
+  .stages{display:flex;gap:14px;width:100%;max-width:960px}
+  .stage{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px 18px;position:relative;overflow:hidden}
+  .stage::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--grad2)}
+  .stage .stage-num{font-size:.72rem;color:var(--primary-light);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;font-weight:600}
+
+  /* PIE CHART */
+  .pie-container{display:flex;align-items:center;gap:32px;max-width:700px;width:100%}
+  .pie{width:200px;height:200px;border-radius:50%;background:conic-gradient(
+    #8b5cf6 0deg 144deg,
+    #38bdf8 144deg 216deg,
+    #c084fc 216deg 270deg,
+    #f472b6 270deg 324deg,
+    #22d3ee 324deg 360deg
+  );flex-shrink:0;position:relative;box-shadow:0 0 40px rgba(139,92,246,.2)}
+  .pie::after{content:'$MUS';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:80px;height:80px;background:var(--bg);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.9rem;color:var(--primary-light)}
+  .pie-legend{display:flex;flex-direction:column;gap:8px}
+  .pie-legend-item{display:flex;align-items:center;gap:10px;font-size:.88rem}
+  .pie-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+
+  /* STAT BOXES */
+  .stat-row{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin:16px 0}
+  .stat-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 28px;text-align:center;min-width:160px}
+  .stat-box .stat-val{font-size:2rem;font-weight:800;background:var(--grad2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .stat-box .stat-label{font-size:.8rem;color:var(--text-dim);margin-top:4px}
+
+  /* ALLOC BAR */
+  .alloc-row{display:flex;align-items:center;gap:14px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);max-width:800px;width:100%}
+  .alloc-bar{height:10px;border-radius:5px;transition:width .6s}
+  .alloc-label{font-size:.86rem;color:var(--text);min-width:200px}
+  .alloc-pct{font-size:1.05rem;font-weight:700;min-width:50px;text-align:right}
+
+  /* CYCLE VIS */
+  .cycle-vis{display:flex;align-items:center;justify-content:center;gap:12px;margin:16px 0;flex-wrap:wrap}
+  .cycle-node{background:var(--surface);border:2px solid var(--primary);border-radius:12px;padding:12px 16px;font-size:.82rem;text-align:center;min-width:110px;color:var(--text-bright);font-weight:600}
+  .cycle-node.outer{border-color:var(--accent2)}
+  .cycle-arrow{color:var(--primary-light);font-size:1.4rem;font-weight:700}
+
+  .callout{margin-top:16px;padding:14px 22px;background:var(--surface);border-left:3px solid var(--primary);border-radius:0 10px 10px 0;max-width:900px}
+  .callout p{margin:0;font-size:.9rem}
+  .callout.accent2{border-left-color:var(--accent2)}
+  .callout.accent3{border-left-color:var(--accent3)}
+
+  .bg-glow{position:fixed;border-radius:50%;filter:blur(120px);opacity:.12;pointer-events:none;z-index:0}
+  .bg-glow.a{width:500px;height:500px;background:#8b5cf6;top:-100px;right:-100px}
+  .bg-glow.b{width:400px;height:400px;background:#38bdf8;bottom:-80px;left:-80px}
+
+  .slide-content{position:relative;z-index:1;width:100%;max-width:1060px;display:flex;flex-direction:column;align-items:flex-start}
+  .slide-content.center{align-items:center;text-align:center}
+
+  @media(max-width:768px){
+    .slide{padding:24px 20px}
+    h1{font-size:2rem}.logo-text{font-size:3rem}
+    .cards-3,.cards-4{grid-template-columns:1fr}
+    .cards-2{grid-template-columns:1fr}
+    .dual-loop{grid-template-columns:1fr}
+    .stages{flex-direction:column}
+    .flow{flex-direction:column}.flow-arrow{transform:rotate(90deg)}
+    .token-grid{grid-template-columns:1fr}
+    .nav-arrow{display:none}
+    .pie-container{flex-direction:column}
+    .stat-row{flex-direction:column;align-items:center}
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-glow a"></div>
+<div class="bg-glow b"></div>
+<div class="progress-bar" id="progress"></div>
+<div class="page-indicator" id="pageNum"></div>
+<button class="nav-arrow left" onclick="go(-1)">&#8592;</button>
+<button class="nav-arrow right" onclick="go(1)">&#8594;</button>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 0: COVER ===== -->
+<div class="slide">
+  <div class="slide-content center">
+    <div class="logo-text">MusAI</div>
+    <h1 style="font-size:2.2rem;margin-top:8px">AI 驅動的音樂金融協議</h1>
+    <p class="subtitle">生成即產權，流量即價值</p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:8px">
+      <span class="tag">AI Music Generation</span>
+      <span class="tag">Copyright NFT</span>
+      <span class="tag">Voice DNA</span>
+      <span class="tag">Studio DID</span>
+      <span class="tag">MusPulse</span>
+      <span class="tag">V-Idol</span>
+      <span class="tag">$MUS Token</span>
+    </div>
+    <div class="cover-badge" style="margin-top:32px">Pitch Deck 2026</div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 1: 行業數據 ===== -->
+<div class="slide">
+  <div class="slide-content center">
+    <h2 style="text-align:center">音樂產業的結構性困局</h2>
+    <p class="subtitle">串流時代效率提升，但利益分配仍嚴重失衡</p>
+    <div class="stat-row">
+      <div class="stat-box">
+        <div class="stat-val">$28.6B</div>
+        <div class="stat-label">2023 全球錄製音樂營收</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" style="background:linear-gradient(135deg,#f472b6,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent">~12%</div>
+        <div class="stat-label">創作者實際分潤比例</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val">14.07億</div>
+        <div class="stat-label">全球串流付費訂閱用戶</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" style="background:linear-gradient(135deg,#22c55e,#38bdf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent">+137%</div>
+        <div class="stat-label">短影音音樂發現增速</div>
+      </div>
+    </div>
+    <div class="cards cards-3" style="margin-top:20px">
+      <div class="card">
+        <span class="card-icon">🔒</span>
+        <h3>版稅清算黑盒</h3>
+        <p>多層中介導致創作者難以掌握實際收益，版稅回收週期長達 <span class="hl">6-18 個月</span>，資訊不對稱嚴重</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">🎵</span>
+        <h3>創作門檻偏高</h3>
+        <p>完整音樂製作需作曲、編曲、混音、母帶，單曲製作成本 <span class="hl">$3,000-$50,000</span>，大量創作者被排除</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">📉</span>
+        <h3>IP 資產流動性不足</h3>
+        <p>版權管理流程複雜，授權拆分效率低，全球 <span class="hl">70%+</span> 音樂版權處於未被商業化狀態</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 2: Web3 失敗教訓 ===== -->
+<div class="slide">
+  <div class="slide-content">
+    <h2>Web3 音樂的失敗教訓</h2>
+    <p class="subtitle">過去項目停留在「將內容 NFT 化」，未解決核心問題</p>
+    <div class="cards cards-2" style="max-width:850px">
+      <div class="card">
+        <span class="card-icon">⚠️</span>
+        <h3>缺乏原生生產力</h3>
+        <p>只把既有音樂搬到鏈上，<span class="hl3">無法改善供給效率</span>，也無法建立持續創作能力。內容供給不足導致用戶留存極低。</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">⚠️</span>
+        <h3>缺乏真實需求支撐</h3>
+        <p>依賴圈內交易與代幣流轉，沒有 <span class="hl3">B 端授權與外部現金流</span>，價值閉環難以成立，代幣價格歸零。</p>
+      </div>
+    </div>
+    <div class="callout" style="max-width:850px">
+      <p><span class="hl">核心洞察：</span>內容如何持續生產 + 價值如何持續流入 = Web3 音樂的兩個必答題。MusAI 用 AI 解決第一題，用 B 端營收解決第二題。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 3: AI + Web3 解方 ===== -->
+<div class="slide">
+  <div class="slide-content">
+    <h2>AI + Web3：音樂的第二次工業革命</h2>
+    <p class="subtitle">AI 解決生產力，Web3 解決所有權與分配</p>
+    <div class="cards cards-3">
+      <div class="card">
+        <span class="card-icon">🤖</span>
+        <h3>AI 民主化創作</h3>
+        <p>每個人都能將腦中旋律轉化為 <span class="hl2">48kHz 品質</span>的數位資產。創作門檻從<span class="hl">數萬美元降至接近零</span>。</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">🧬</span>
+        <h3>AI 聲紋資產化</h3>
+        <p>透過 Voice DNA 建模，聲音成為<span class="hl2">可授權、可交易、可追蹤</span>的鏈上金融資產，開創聲音經濟新範式。</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">⚡</span>
+        <h3>規模化內容裂變</h3>
+        <p>從以<span class="hl">「月」</span>為單位 → 以<span class="hl">「秒」</span>為單位的內容爆發，為短影音與虛擬偶像提供無盡燃料。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 4: 核心價值主張 ===== -->
+<div class="slide">
+  <div class="slide-content center">
+    <h2 style="text-align:center">MusAI 核心價值主張</h2>
+    <p class="subtitle">讓音樂創作更低門檻、讓版權價值可資產化、讓收益分配自動化</p>
+    <div style="display:flex;gap:40px;margin-top:12px;flex-wrap:wrap;justify-content:center">
+      <div style="text-align:center">
+        <div class="num">生成</div>
+        <div style="font-size:1rem;color:var(--text-dim)">即產權</div>
+      </div>
+      <div style="font-size:2.5rem;color:var(--primary);align-self:center">×</div>
+      <div style="text-align:center">
+        <div class="num">流量</div>
+        <div style="font-size:1rem;color:var(--text-dim)">即價值</div>
+      </div>
+    </div>
+    <p style="margin-top:24px;max-width:680px;text-align:center">以 <span class="hl">MusPulse</span> 切入短影音 BGM 與洗腦神曲需求，結合<span class="hl2">虛擬偶像機制</span>，讓內容、流量與資產價值互相增強</p>
+  </div>
+</div>
+
+<!-- ===== SLIDE 5: 三大突破 ===== -->
+<div class="slide">
+  <div class="slide-content">
+    <h2>三大核心突破</h2>
+    <div class="stages">
+      <div class="stage">
+        <div class="stage-num">突破一</div>
+        <h3>從「搬運」到「原生生成」</h3>
+        <p style="font-size:.86rem;color:var(--text-dim)">透過 AI 生成能力，大幅降低創作成本，讓高品質 Web3 音樂具備<span class="hl">規模化生產</span>可能</p>
+      </div>
+      <div class="stage">
+        <div class="stage-num">突破二</div>
+        <h3>從「單一 NFT」到「Studio DID」</h3>
+        <p style="font-size:.86rem;color:var(--text-dim)">將作品、聲紋、收益權與創作能力整合為<span class="hl2">可持續經營的數位工作室</span></p>
+      </div>
+      <div class="stage">
+        <div class="stage-num">突破三</div>
+        <h3>從「鏈上交易」到「真實營收」</h3>
+        <p style="font-size:.86rem;color:var(--text-dim)">影視、遊戲、店鋪公播、品牌短影音 — <span class="hl3">外部現金流反向支撐</span>協議價值</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 6: Studio DID ===== -->
+<div class="slide">
+  <div class="slide-content">
+    <h2>技術架構 — Studio DID</h2>
+    <p class="subtitle">生態核心操作單元：身份 + 資產 + 收益的統一容器</p>
+    <div class="cards cards-2" style="max-width:920px">
+      <div class="card">
+        <h3>🏢 帳戶即資產包</h3>
+        <p style="font-size:.86rem;color:var(--text-dim);margin-bottom:10px">Studio DID 採用帳戶抽象化概念，將核心資產整合於同一容器：</p>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <span class="tag">Voice DNA 聲紋</span>
+          <span class="tag">完整歌曲作品</span>
+          <span class="tag">Copyright NFT</span>
+          <span class="tag">版稅收益權</span>
+          <span class="tag">算力節點權益</span>
+          <span class="tag">DID 等級與聲譽</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>📈 可經營・可定價・可轉讓</h3>
+        <p>封裝持續產出能力與累積資產。不只持有一首歌，而是持有一個<span class="hl">可持續創作、持續分潤、持續增值</span>的數位工作室。整個 DID 可轉讓交易。</p>
+      </div>
+    </div>
+    <div style="margin-top:16px;padding:14px 22px;background:var(--surface);border:1px solid var(--border);border-radius:10px;max-width:920px">
+      <h3 style="font-size:.95rem">🔗 鏈上信譽體系</h3>
+      <p style="font-size:.84rem;color:var(--text-dim);margin:0">持續累積模型調教能力、內容表現、社群貢獻。DID 等級越高 → 資產權重、生成權限與收益能力越強。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 7: 生成引擎 ===== -->
+<div class="slide">
+  <div class="slide-content center">
+    <h2 style="text-align:center">MusAI 生成引擎</h2>
+    <p class="subtitle">Prompt → 完整人聲歌曲，一鍵生成</p>
+    <div class="flow" style="margin:16px 0">
+      <div class="flow-step">🎤 歌詞創作</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">🎼 旋律編排</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">🎹 多聲部編曲</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">🗣️ AI 人聲合成</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">🎚️ 智能混音母帶</div>
+    </div>
+    <div class="cards cards-2" style="margin-top:14px;max-width:820px">
+      <div class="card">
+        <h3>🧬 Voice DNA 克隆與授權</h3>
+        <p>上傳聲紋樣本 → 訓練專屬 AI 歌手模型，掛載於 Studio DID，可<span class="hl">授權・調用・分潤</span>。Voice DNA 是可定價的鏈上聲音資產。</p>
+      </div>
+      <div class="card">
+        <h3>📜 生成即確權</h3>
+        <p>自動提取音頻指紋 → 綁定 Studio DID → 生成 <span class="hl2">Copyright NFT</span>。支持收益拆分、共創分潤與結算映射。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 8: 資產層 ===== -->
+<div class="slide">
+  <div class="slide-content">
+    <h2>資產層：Copyright NFT 與收益映射</h2>
+    <p class="subtitle">將音樂生產成果轉化為可追蹤、可拆分、可分潤的鏈上資產</p>
+    <div class="cards cards-2" style="max-width:900px">
+      <div class="card">
+        <span class="card-icon">🎵</span>
+        <h3>版權收益拆分</h3>
+        <p>每首歌曲的收益權可按比例拆分，支持細顆粒度的收益映射。單曲成為<span class="hl">可拆分、可管理的收益型資產單元</span>。</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">🤝</span>
+        <h3>共創分潤</h3>
+        <p>若作品使用其他 Studio DID 的 Voice DNA 或協作資源，系統依預設規則<span class="hl2">自動完成收益分配</span>。</p>
+      </div>
+    </div>
+    <div class="callout" style="max-width:900px">
+      <p><span class="hl">結算映射機制：</span>平台內外收益流統一映射回鏈上資產結構，創作者、協作者與資產持有人依權益比例獲得回報。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 9: MusPulse ===== -->
+<div class="slide">
+  <div class="slide-content">
+    <h2>MusPulse — 分發與流量轉化層</h2>
+    <p class="subtitle">歌曲 → 15~30 秒短影音切片 → 病毒式傳播</p>
+    <div class="cards cards-3">
+      <div class="card">
+        <span class="card-icon">✂️</span>
+        <h3>自動金曲剪輯</h3>
+        <p>AI 識別最具記憶點 <span class="hl">Hook</span>，自動切片為短影音素材，用於內部流通與社群傳播</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">💎</span>
+        <h3>互動激勵</h3>
+        <p>滑動、收藏、點讚、轉發 → 獲得 <span class="hl2">$MUS</span> 獎勵。不是單純補貼流量，而是訓練內容分發系統。</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">🔄</span>
+        <h3>Remix-to-Viral</h3>
+        <p>一鍵 Remix，原作者・改編者・算力節點<span class="hl3">共享收益分配</span></p>
+      </div>
+    </div>
+    <h3 style="margin-top:20px;font-size:1rem">DID-Centric 完整流程</h3>
+    <div class="flow">
+      <div class="flow-step">🆔 啟動 DID</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">💬 Prompt 輸入</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">🎵 完整歌曲</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">📜 Copyright NFT</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">✂️ 金曲切片</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">📱 MusPulse 分發</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">💰 價值回流 DID</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 10: 虛擬偶像 三階段 ===== -->
+<div class="slide">
+  <div class="slide-content">
+    <h2>虛擬偶像生態：三階段成長</h2>
+    <p class="subtitle">Studio DID 在粉絲經濟場景中的高階表現形式</p>
+    <div class="stages">
+      <div class="stage">
+        <div class="stage-num">Phase 1 — 實習生</div>
+        <h3>🌱 Trainee</h3>
+        <p style="font-size:.84rem;color:var(--text-dim)">完成基本激活，具備初始聲紋與基礎分潤能力。開始積累創作作品與社群數據，建立早期粉絲基礎。</p>
+      </div>
+      <div class="stage">
+        <div class="stage-num">Phase 2 — 正式出道</div>
+        <h3>🎤 Debut</h3>
+        <p style="font-size:.84rem;color:var(--text-dim)">作品數量、互動數據與社群支持達標後升級。解鎖專屬形象、更多收益能力與獨家粉絲互動功能。</p>
+      </div>
+      <div class="stage">
+        <div class="stage-num">Phase 3 — 名人堂</div>
+        <h3>👑 Hall of Fame</h3>
+        <p style="font-size:.84rem;color:var(--text-dim)">進入全網頭部排行。資產價值、流量資源與場景權限全面提升，成為生態核心 IP。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 11: 虛擬偶像 粉絲經濟 ===== -->
+<div class="slide">
+  <div class="slide-content">
+    <h2>粉絲經濟與傳播玩法</h2>
+    <div class="cards cards-2" style="max-width:920px">
+      <div class="card">
+        <h3>💜 虛擬應援與打賞</h3>
+        <p>每筆 $MUS 打賞自動分配至：</p>
+        <ul class="feature-list" style="margin:8px 0 0">
+          <li>創作者直接收益</li>
+          <li>專屬版權分潤池</li>
+          <li>劇場節點分成</li>
+          <li>國庫回購與平台運營</li>
+          <li>部分代幣銷毀（通縮）</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>🎭 數位週邊與社交玩法</h3>
+        <ul class="feature-list" style="margin:0">
+          <li><span class="hl2">Aura NFT</span> — 直播間特效與粉絲身份</li>
+          <li><span class="hl2">Voice Pack</span> — 偶像聲紋專屬語音資產</li>
+          <li><span class="hl2">交互式門票</span> — 限時劇場活動</li>
+          <li><span class="hl">聲音濾鏡挑戰</span> — 用偶像聲紋錄製內容</li>
+          <li><span class="hl">打榜遊戲化</span> — 互動轉化為戰力值</li>
+          <li><span class="hl3">Music Memes</span> — 模因化病毒傳播</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 12: 商業模式 核心收入 ===== -->
+<div class="slide">
+  <div class="slide-content">
+    <h2>商業模式：多維度價值捕獲</h2>
+    <p class="subtitle">AI 生產力 × 內容分發 × 資產化 = 多元營收</p>
+    <div class="cards cards-2" style="max-width:920px">
+      <div class="card">
+        <h3>💰 核心收入來源</h3>
+        <ul class="feature-list" style="margin:0">
+          <li><span class="hl">AI 算力服務費</span> — 生成歌曲消耗 $MUS</li>
+          <li><span class="hl">版權發行抽成</span> — 平台收取協議管理費</li>
+          <li><span class="hl">資產交易手續費</span> — DID / NFT / Voice DNA 流通</li>
+          <li><span class="hl">MusPulse 推廣收入</span> — 品牌與廣告主付費</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>🔥 爆款經濟 & 聲紋租賃</h3>
+        <ul class="feature-list" style="margin:0">
+          <li><span class="hl2">Meme-to-Earn</span> — 被大量引用 = DID 權重提升</li>
+          <li><span class="hl2">Voice-as-a-Service</span> — 付費使用頭部聲紋</li>
+          <li><span class="hl2">Boost-to-Earn</span> — 策展早期潛力作品共享回報</li>
+        </ul>
+      </div>
+    </div>
+    <div class="callout accent2" style="max-width:920px">
+      <p><span class="hl2">商業閉環：</span>用戶消耗 $MUS 生成音樂 → 切片進入 MusPulse → 熱度帶動資產重估 → 商業收入回流生態 → 推動 $MUS 需求循環</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 13: B端業務出口 ===== -->
+<div class="slide">
+  <div class="slide-content">
+    <h2>B 端業務出口：AI Music-as-a-Service</h2>
+    <p class="subtitle">不只是創作者工具，也是對企業開放的 AI 音樂供應與分發系統</p>
+    <div class="cards cards-3">
+      <div class="card">
+        <span class="card-icon">🎧</span>
+        <h3>1. 串流分發網關</h3>
+        <p>高品質作品對接 Spotify、Apple Music、KKBOX 等外部流媒體，收益映射回 MusAI 生態。</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">🎮</span>
+        <h3>2. 商用版權庫 & API</h3>
+        <ul style="list-style:none;padding:0;font-size:.84rem;color:var(--text-dim)">
+          <li>• 遊戲與影視配樂：動態生成 BGM</li>
+          <li>• 店鋪公播系統：品牌風格化 AI 電台</li>
+          <li>• API 訂閱制：第三方直接調用</li>
+        </ul>
+      </div>
+      <div class="card">
+        <span class="card-icon">👤</span>
+        <h3>3. 企業虛擬代言人</h3>
+        <p>定製品牌專屬 Voice DNA 與虛擬角色，用於促銷內容、社群營運與品牌短影音輸出。</p>
+      </div>
+    </div>
+    <div style="margin-top:18px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+      <span style="color:var(--text-dim);font-size:.85rem">現階段營收聚焦：</span>
+      <span class="tag">B 端定製服務</span>
+      <span class="tag">API 調用費</span>
+      <span class="tag">種子用戶創作包</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 14: 商業模式表格 ===== -->
+<div class="slide">
+  <div class="slide-content">
+    <h2>商業模式進化：從內容到協議</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>業務類型</th>
+            <th>客戶群體</th>
+            <th>核心價值</th>
+            <th>支付 / 結算</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="hl">C 端創作</span></td>
+            <td>獨立創作者、玩家</td>
+            <td>降低門檻、產權變現</td>
+            <td>$MUS</td>
+          </tr>
+          <tr>
+            <td><span class="hl2">B 端授權</span></td>
+            <td>串流媒體、影視、品牌方</td>
+            <td>內容供應、版權映射、收益回流</td>
+            <td>穩定幣 / 法幣 / $MUS</td>
+          </tr>
+          <tr>
+            <td><span class="hl3">SaaS 服務</span></td>
+            <td>遊戲公司、線下店鋪</td>
+            <td>動態配樂、品牌音樂生成</td>
+            <td>訂閱制</td>
+          </tr>
+          <tr>
+            <td><span class="hl">廣告行銷</span></td>
+            <td>品牌與代理商</td>
+            <td>MusPulse 流量、V-Idol 宣傳</td>
+            <td>$MUS</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout accent2" style="max-width:960px">
+      <p><span class="hl2">營收反哺生態飛輪：</span>外部收入回購 $MUS → 創作者激勵基金 → 更多優質內容 → 更多流量 → 更高資產活躍度</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 15: 可玩性付費循環 ===== -->
+<div class="slide">
+  <div class="slide-content">
+    <h2>可玩性的付費循環</h2>
+    <p class="subtitle">把付費行為產品化與遊戲化</p>
+    <div class="cards cards-3">
+      <div class="card">
+        <span class="card-icon">🧬</span>
+        <h3>聲紋進化系統</h3>
+        <p>消耗 $MUS 提升 AI 歌手的表現屬性，解鎖更高品質的聲音表現力。</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">🎭</span>
+        <h3>劇場門票與虛擬週邊</h3>
+        <p>粉絲用 $MUS 參與限時演出、應援互動與周邊購買，深化粉絲連結。</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">⭐</span>
+        <h3>偶像成長路線</h3>
+        <p>粉絲互動與付費映射為偶像成長動能，打造陪伴感與投入感。</p>
+      </div>
+    </div>
+    <div class="callout accent3" style="max-width:960px">
+      <p><span class="hl3">核心邏輯：</span>每一筆 $MUS 消耗都在創造價值 — 提升聲紋、推動偶像成長、解鎖內容、訓練分發算法</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 16: $MUS 代幣基本資訊 ===== -->
+<div class="slide">
+  <div class="slide-content center">
+    <h2 style="text-align:center">$MUS 代幣經濟</h2>
+    <p class="subtitle">MusAI Token — 生態的核心價值媒介</p>
+    <div class="big-num" style="margin:12px 0">1,000,000,000</div>
+    <p style="color:var(--text-dim);font-size:1rem;margin-bottom:20px">固定總量 · 永不增發</p>
+    <div class="token-grid">
+      <div class="token-item">
+        <div class="label">代幣名稱</div>
+        <div class="value">MusAI Token</div>
+      </div>
+      <div class="token-item">
+        <div class="label">代幣符號</div>
+        <div class="value" style="background:var(--grad2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-size:1.3rem">$MUS</div>
+      </div>
+      <div class="token-item">
+        <div class="label">機制設定</div>
+        <div class="value">固定總量，永不增發</div>
+      </div>
+      <div class="token-item">
+        <div class="label">底層協議</div>
+        <div class="value">多鏈部署 · 高效能低費率 L1/L2</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 17: 代幣分配 PIE CHART ===== -->
+<div class="slide">
+  <div class="slide-content center">
+    <h2 style="text-align:center">$MUS 代幣分配</h2>
+    <p class="subtitle">在早期流動性、內容激勵與長期生態穩定之間取得平衡</p>
+    <div class="pie-container" style="margin:16px auto">
+      <div class="pie"></div>
+      <div class="pie-legend">
+        <div class="pie-legend-item"><div class="pie-dot" style="background:#8b5cf6"></div><span><span class="hl" style="font-size:1.1rem">40%</span> 生態激勵與內容挖礦</span></div>
+        <div class="pie-legend-item"><div class="pie-dot" style="background:#38bdf8"></div><span><span class="hl2" style="font-size:1.1rem">20%</span> 國庫 Treasury</span></div>
+        <div class="pie-legend-item"><div class="pie-dot" style="background:#c084fc"></div><span><span style="font-size:1.1rem;font-weight:700;color:var(--accent)">15%</span> 團隊與顧問</span></div>
+        <div class="pie-legend-item"><div class="pie-dot" style="background:#f472b6"></div><span><span class="hl3" style="font-size:1.1rem">15%</span> 早期支持者 / 融資</span></div>
+        <div class="pie-legend-item"><div class="pie-dot" style="background:#22d3ee"></div><span><span style="font-size:1.1rem;font-weight:700;color:#22d3ee">10%</span> 流動性與社區空投</span></div>
+      </div>
+    </div>
+    <div class="table-wrap" style="max-width:800px;margin-top:16px">
+      <table>
+        <thead><tr><th>分配項目</th><th>比例</th><th>機制說明</th></tr></thead>
+        <tbody>
+          <tr><td>🎵 生態激勵與內容挖礦</td><td><span class="hl">40%</span></td><td>透過 MusPulse 播放、創作獎勵與算力節點產出</td></tr>
+          <tr><td>🏦 國庫 Treasury</td><td><span class="hl2">20%</span></td><td>用於 B 端擴張、合作拓展與戰略儲備</td></tr>
+          <tr><td>👥 團隊與顧問</td><td>15%</td><td>長期建設與治理協同激勵</td></tr>
+          <tr><td>🚀 早期支持者 / 融資</td><td>15%</td><td>啟動階段資源整合與流動性支持</td></tr>
+          <tr><td>💧 流動性與社區空投</td><td>10%</td><td>初始流動性與種子用戶激勵</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 18: 雙循環模型 ===== -->
+<div class="slide">
+  <div class="slide-content center">
+    <h2 style="text-align:center">$MUS 雙循環模型</h2>
+    <p class="subtitle">內循環驅動產品需求，外循環注入真實營收</p>
+    <div class="dual-loop">
+      <div class="loop-box" style="border-color:var(--primary-dark)">
+        <h3>🔄 A. 內循環：創作與消耗</h3>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:8px">確保 $MUS 在產品內部具備持續需求</p>
+        <ul>
+          <li><span class="hl">AI 生成燃料</span> — 生成歌曲消耗 $MUS</li>
+          <li><span class="hl">Voice DNA 授權</span> — 調用熱門聲紋需支付 $MUS</li>
+          <li><span class="hl">DID 進化</span> — 升級需消耗並鎖定 $MUS</li>
+          <li><span class="hl">劇場互動與週邊</span> — 演出・打賞・門票以 $MUS 支付</li>
+        </ul>
+      </div>
+      <div class="loop-box" style="border-color:var(--accent2)">
+        <h3>💰 B. 外循環：真實營收回流</h3>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:8px">讓外部業務與代幣生態形成連動</p>
+        <ul>
+          <li><span class="hl2">B 端現金流流入</span> — 流媒體・遊戲・品牌・API 訂閱</li>
+          <li><span class="hl2">協議回購</span> — 部分外部收入回流至 $MUS</li>
+          <li><span class="hl2">二次分配</span> — 國庫・策展池・獎勵池・銷毀機制</li>
+        </ul>
+      </div>
+    </div>
+    <!-- Visual cycle -->
+    <div style="margin-top:20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center">
+      <div class="cycle-node">🎵 AI 創作<br><small>消耗 $MUS</small></div>
+      <span class="cycle-arrow">→</span>
+      <div class="cycle-node">📱 MusPulse<br><small>內容分發</small></div>
+      <span class="cycle-arrow">→</span>
+      <div class="cycle-node outer">💼 B端收入<br><small>法幣/穩定幣</small></div>
+      <span class="cycle-arrow">→</span>
+      <div class="cycle-node outer">🔄 協議回購<br><small>$MUS</small></div>
+      <span class="cycle-arrow">→</span>
+      <div class="cycle-node">🎁 生態分配<br><small>獎勵+銷毀</small></div>
+      <span class="cycle-arrow">↩</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 19: 策展經濟 ===== -->
+<div class="slide">
+  <div class="slide-content center">
+    <h2 style="text-align:center">策展經濟：Boost-to-Earn</h2>
+    <p class="subtitle">讓「內容發現」本身成為平台價值的一部分</p>
+    <div class="flow" style="margin:20px 0">
+      <div class="flow-step" style="border-color:var(--primary)">🔍 發現潛力作品</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step" style="border-color:var(--accent)">💎 消耗 $MUS<br>進行推廣</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step" style="border-color:var(--accent2)">📈 作品獲得<br>流量與收益</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step" style="border-color:var(--accent3)">🎉 早期推廣者<br>共享回報</div>
+    </div>
+    <div class="cards cards-2" style="max-width:800px;margin-top:12px">
+      <div class="card">
+        <h3>推歌即參與策展</h3>
+        <p>用戶在 MusPulse 內發現潛力作品，透過消耗 $MUS 參與推廣與內容策展。讓用戶不只消費音樂，也參與音樂價值的形成。</p>
+      </div>
+      <div class="card">
+        <h3>流量策展機制</h3>
+        <p>熱門歌曲推薦權重不再完全依賴中心化決策，引入<span class="hl2">用戶參與式推廣邏輯</span>，讓早期發現者也能參與流量分發。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 20: 通縮機制 ===== -->
+<div class="slide">
+  <div class="slide-content center">
+    <h2 style="text-align:center">$MUS 通縮機制</h2>
+    <p class="subtitle">多重場景驅動代幣持續銷毀，形成長期通縮趨勢</p>
+    <div class="cards cards-2" style="max-width:800px">
+      <div class="card" style="text-align:center">
+        <span class="card-icon">🔥</span>
+        <h3>消耗型銷毀</h3>
+        <ul class="feature-list" style="margin:0">
+          <li>AI 生成歌曲消耗的部分 $MUS 直接銷毀</li>
+          <li>Voice DNA 授權費用部分銷毀</li>
+          <li>DID 升級消耗包含銷毀比例</li>
+          <li>劇場打賞包含銷毀分成</li>
+        </ul>
+      </div>
+      <div class="card" style="text-align:center">
+        <span class="card-icon">📉</span>
+        <h3>回購型銷毀</h3>
+        <ul class="feature-list" style="margin:0">
+          <li>B 端外部收入部分用於回購銷毀</li>
+          <li>協議管理費部分進入銷毀池</li>
+          <li>資產交易手續費部分銷毀</li>
+          <li>MusPulse 推廣費部分銷毀</li>
+        </ul>
+      </div>
+    </div>
+    <div style="margin-top:20px;display:flex;gap:24px;flex-wrap:wrap;justify-content:center">
+      <div style="text-align:center">
+        <div class="big-num">10億</div>
+        <div style="font-size:.85rem;color:var(--text-dim)">初始總量 · 固定上限</div>
+      </div>
+      <div style="font-size:2.5rem;color:var(--accent3);align-self:center">→</div>
+      <div style="text-align:center">
+        <div class="big-num" style="background:linear-gradient(135deg,#f472b6,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent">持續通縮</div>
+        <div style="font-size:.85rem;color:var(--text-dim)">多場景銷毀 · 越用越少</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 21: 營收反哺 ===== -->
+<div class="slide">
+  <div class="slide-content">
+    <h2>營收如何反哺生態</h2>
+    <p class="subtitle">MusAI 的營收不只是平台收入，也反向支撐整個代幣與創作者生態</p>
+    <div class="cards cards-3">
+      <div class="card">
+        <span class="card-icon">🔄</span>
+        <h3>外部收入回購</h3>
+        <p>B 端與 Web2 場景的外部收入，部分回流至 $MUS 生態，支撐代幣長期價值。</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">🏆</span>
+        <h3>創作者激勵基金</h3>
+        <p>設立爆款獎金與流量獎勵，持續吸引更多優質創作者加入生態。</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">🚀</span>
+        <h3>生態增長飛輪</h3>
+        <p>收入 → 更多創作者 → 更多內容 → 更多流量 → 更高資產活躍度 → 更多收入</p>
+      </div>
+    </div>
+    <div class="flow" style="margin-top:20px">
+      <div class="flow-step" style="border-color:var(--accent2)">💼 B端/Web2 營收</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step" style="border-color:var(--primary)">🔄 協議回購 $MUS</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step" style="border-color:var(--accent)">🎁 創作者激勵</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step" style="border-color:var(--accent3)">📈 內容+流量增長</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step" style="border-color:var(--green)">💰 更多營收</div>
+      <span class="flow-arrow">↩</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 22: 投資價值 ===== -->
+<div class="slide">
+  <div class="slide-content center">
+    <h2 style="text-align:center">$MUS 投資與通縮模型</h2>
+    <p class="subtitle">代幣價值捕獲來自內容消費 + 資產金融化 + 外部營收回流</p>
+    <div class="stat-row">
+      <div class="stat-box">
+        <div class="stat-val">40%</div>
+        <div class="stat-label">用於生態激勵</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" style="background:linear-gradient(135deg,#f472b6,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent">多重</div>
+        <div class="stat-label">通縮場景</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val">3+</div>
+        <div class="stat-label">B端營收來源</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" style="background:linear-gradient(135deg,#22c55e,#38bdf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent">∞</div>
+        <div class="stat-label">AI 內容生成能力</div>
+      </div>
+    </div>
+    <div class="callout accent3" style="max-width:800px;margin-top:16px">
+      <p style="text-align:center"><span class="hl3">核心邏輯：</span>固定總量 + 多場景消耗銷毀 + 外部營收回購 = 長期通縮趨勢。$MUS 不只是交易媒介，更是生態價值的直接載體。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 23: 為什麼是 MusAI ===== -->
+<div class="slide">
+  <div class="slide-content center">
+    <h2 style="text-align:center">為什麼是 MusAI？</h2>
+    <div class="cards cards-2" style="max-width:860px;margin-top:12px">
+      <div class="card" style="text-align:center">
+        <span class="card-icon">🤖</span>
+        <h3>AI 原生生產力</h3>
+        <p>不是搬運內容上鏈，而是用 AI 從零生產。Prompt-to-Song 讓每個人都是創作者。</p>
+      </div>
+      <div class="card" style="text-align:center">
+        <span class="card-icon">💼</span>
+        <h3>真實 B 端營收</h3>
+        <p>串流分發、商用版權庫、企業虛擬代言人 — 外部現金流支撐代幣生態。</p>
+      </div>
+      <div class="card" style="text-align:center">
+        <span class="card-icon">🧬</span>
+        <h3>聲音資產化先驅</h3>
+        <p>Voice DNA 讓聲音成為可定價、可授權、可交易的鏈上金融資產。</p>
+      </div>
+      <div class="card" style="text-align:center">
+        <span class="card-icon">📱</span>
+        <h3>短影音原生切入</h3>
+        <p>MusPulse 對接全球最大流量場景，讓音樂內容自然病毒式傳播。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 24: CTA ===== -->
+<div class="slide">
+  <div class="slide-content center">
+    <div class="logo-text" style="font-size:4rem">MusAI</div>
+    <h1 style="font-size:2rem;margin-top:8px">生成即產權，流量即價值</h1>
+    <p class="subtitle" style="max-width:600px">AI 驅動的音樂金融協議<br>重新定義音樂的創作、分發與價值捕獲</p>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin:20px 0">
+      <span class="tag">Studio DID</span>
+      <span class="tag">Voice DNA</span>
+      <span class="tag">Copyright NFT</span>
+      <span class="tag">MusPulse</span>
+      <span class="tag">V-Idol</span>
+      <span class="tag">$MUS</span>
+    </div>
+    <div class="cta-box" style="margin-top:32px">
+      <div class="cta-btn">Join the Music Revolution</div>
+    </div>
+    <p style="margin-top:24px;color:var(--text-dim);font-size:.9rem">Let's build the future of music together.</p>
+  </div>
+</div>
+
+</div><!-- /deck -->
+
+<script>
+(function(){
+  const slides=document.querySelectorAll('.slide');
+  const total=slides.length;
+  let cur=0;
+
+  function show(n){
+    if(n<0||n>=total)return;
+    slides[cur].classList.remove('active');
+    slides[cur].classList.remove('prev');
+    if(n<cur)slides[cur].classList.add('prev');
+    cur=n;
+    slides[cur].classList.remove('prev');
+    slides[cur].classList.add('active');
+    document.getElementById('pageNum').textContent=(cur+1)+' / '+total;
+    document.getElementById('progress').style.width=((cur+1)/total*100)+'%';
+  }
+
+  window.go=function(d){show(cur+d)};
+  show(0);
+
+  document.addEventListener('keydown',function(e){
+    if(e.key==='ArrowRight'||e.key===' '||e.key==='Enter')go(1);
+    else if(e.key==='ArrowLeft'||e.key==='Backspace')go(-1);
+    else if(e.key==='Home')show(0);
+    else if(e.key==='End')show(total-1);
+  });
+
+  let tx=0;
+  document.addEventListener('touchstart',function(e){tx=e.touches[0].clientX},{passive:true});
+  document.addEventListener('touchend',function(e){
+    const dx=e.changedTouches[0].clientX-tx;
+    if(Math.abs(dx)>50){dx<0?go(1):go(-1)}
+  },{passive:true});
+
+  document.querySelector('.deck').addEventListener('click',function(e){
+    if(e.target.closest('.nav-arrow')||e.target.closest('a'))return;
+    const x=e.clientX/window.innerWidth;
+    x>0.5?go(1):go(-1);
+  });
+})();
+</script>
+</body>
+</html>
